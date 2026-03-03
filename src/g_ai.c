@@ -14,6 +14,7 @@ qboolean ai_checkattack(edict_t *self, float dist);
 qboolean enemy_infront;
 qboolean enemy_vis;
 qboolean FindTarget(edict_t *self);
+void abortHeal(edict_t *self, qboolean change_frame, qboolean gib, qboolean mark);
 
 /* ========================================================================== */
 
@@ -1166,7 +1167,7 @@ hesDeadJim(const edict_t *self)
 
 	if (self->monsterinfo.aiflags & AI_MEDIC)
 	{
-		return (enemy->health > 0);
+		return (enemy->health > 0) || (enemy->health <= enemy->gib_health);
 	}
 
 	if (enemy->client && level.intermissiontime)
@@ -1180,6 +1181,15 @@ hesDeadJim(const edict_t *self)
 	}
 
 	return (enemy->health <= 0);
+}
+
+static void
+stop_heal(edict_t *self)
+{
+	if (self && (self->monsterinfo.aiflags & AI_MEDIC))
+	{
+		abortHeal(self, false, false, false);
+	}
 }
 
 qboolean
@@ -1240,8 +1250,9 @@ ai_checkattack(edict_t *self, float dist)
 	/* see if the enemy is dead */
 	if (hesDeadJim(self))
 	{
+		stop_heal(self);
+
 		self->enemy = NULL;
-		self->monsterinfo.aiflags &= ~AI_MEDIC;
 
 		if (self->oldenemy && (self->oldenemy->health > 0))
 		{
